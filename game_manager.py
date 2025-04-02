@@ -16,10 +16,12 @@ WHITE = (255, 255, 255)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 
+
 class GameState(Enum):
     MENU = 0
     SNAKE = 1
     TETRIS = 2
+
 
 class GameManager:
     def __init__(self):
@@ -73,6 +75,7 @@ class GameManager:
                 self.current_game.run_frame()
             
             self.clock.tick(FPS)
+
 
 if __name__ == "__main__":
     manager = GameManager()

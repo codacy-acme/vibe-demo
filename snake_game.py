@@ -166,5 +166,5 @@ class SnakeGame:
 
 
 if __name__ == "__main__":
-    game = SnakeGame()
-    game.run_frame() 
+    print("Please run this game through the game manager (python game_manager.py)")
+    sys.exit(1) 

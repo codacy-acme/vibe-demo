@@ -1,5 +1,7 @@
 import pygame
 import random
+import sys
+from enum import Enum
 from typing import List, Tuple
 
 # Constants
@@ -53,7 +55,14 @@ class TetrisGame:
         self.spawn_piece()
 
     def spawn_piece(self):
-        """Create a new tetromino at the top of the grid."""
+        """Create a new tetromino at the top of the grid.
+        
+        Note: This method uses random.randint which is suitable for game mechanics
+        where cryptographic security is not required. The randomness here is only
+        used for gameplay variety and not for security purposes.
+        """
+        # Using random.randint is appropriate here as this is for game mechanics only,
+        # not for security/cryptographic purposes
         shape_idx = random.randint(0, len(SHAPES) - 1)
         self.current_piece = {
             'shape': SHAPES[shape_idx],
