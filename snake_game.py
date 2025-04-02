@@ -43,8 +43,13 @@ class SnakeGame:
 
     def generate_food(self) -> Tuple[int, int]:
         """Generate food at a random position."""
+        # Note: random.randint is sufficient for game mechanics
+        # We're not using this for security/cryptographic purposes
         while True:
-            food = (random.randint(0, GRID_COUNT - 1), random.randint(0, GRID_COUNT - 1))
+            food = (
+                random.randint(0, GRID_COUNT - 1),
+                random.randint(0, GRID_COUNT - 1)
+            )
             if food not in self.snake:
                 return food
 
@@ -72,8 +77,8 @@ class SnakeGame:
         if key in direction_map:
             new_direction = direction_map[key]
             # Prevent 180-degree turns
-            if (self.direction.value[0] + new_direction.value[0] != 0 or 
-                self.direction.value[1] + new_direction.value[1] != 0):
+            if (self.direction.value[0] + new_direction.value[0] != 0 and
+                    self.direction.value[1] + new_direction.value[1] != 0):
                 self.direction = new_direction
 
     def update(self):
