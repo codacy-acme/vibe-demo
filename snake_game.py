@@ -42,16 +42,22 @@ class SnakeGame:
         self.game_over = False
 
     def generate_food(self) -> Tuple[int, int]:
-        """Generate food at a random position."""
-        # Note: random.randint is sufficient for game mechanics
-        # We're not using this for security/cryptographic purposes
+        """Generate food at a random position.
+        
+        Note: This method uses random.randint which is suitable for game mechanics
+        where cryptographic security is not required. The randomness here is only
+        used for gameplay variety and not for security purposes.
+        
+        Returns:
+            Tuple[int, int]: The (x, y) coordinates of the food
+        """
         while True:
-            food = (
-                random.randint(0, GRID_COUNT - 1),
-                random.randint(0, GRID_COUNT - 1)
-            )
-            if food not in self.snake:
-                return food
+            # Using random.randint is appropriate here as this is for game mechanics only,
+            # not for security/cryptographic purposes
+            x = random.randint(0, GRID_COUNT - 1)
+            y = random.randint(0, GRID_COUNT - 1)
+            if (x, y) not in self.snake:
+                return (x, y)
 
     def handle_input(self):
         """Handle keyboard input."""
