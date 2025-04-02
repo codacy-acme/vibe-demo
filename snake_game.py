@@ -27,9 +27,9 @@ class Direction(Enum):
     RIGHT = (1, 0)
 
 class SnakeGame:
-    def __init__(self):
-        self.screen = pygame.display.set_mode((WINDOW_SIZE, WINDOW_SIZE))
-        pygame.display.set_caption("Snake Game")
+    def __init__(self, manager):
+        self.manager = manager
+        self.screen = manager.screen
         self.clock = pygame.time.Clock()
         self.reset_game()
 
@@ -68,6 +68,8 @@ class SnakeGame:
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_r and self.game_over:
                     self.reset_game()
+                elif event.key == pygame.K_ESCAPE:
+                    self.manager.state = self.manager.GameState.MENU
                 elif not self.game_over:
                     self.change_direction(event.key)
 
@@ -139,6 +141,10 @@ class SnakeGame:
         score_text = font.render(f'Score: {self.score}', True, WHITE)
         self.screen.blit(score_text, (10, 10))
 
+        # Draw ESC hint
+        esc_text = font.render('ESC: Menu', True, WHITE)
+        self.screen.blit(esc_text, (WINDOW_SIZE - 150, 10))
+
         # Draw game over message
         if self.game_over:
             font = pygame.font.Font(None, 72)
@@ -151,15 +157,14 @@ class SnakeGame:
 
         pygame.display.flip()
 
-    def run(self):
-        """Main game loop."""
-        while True:
-            self.handle_input()
-            self.update()
-            self.draw()
-            self.clock.tick(FPS)
+    def run_frame(self):
+        """Run a single frame of the game."""
+        self.handle_input()
+        self.update()
+        self.draw()
+        self.clock.tick(FPS)
 
 
 if __name__ == "__main__":
     game = SnakeGame()
-    game.run() 
+    game.run_frame() 
