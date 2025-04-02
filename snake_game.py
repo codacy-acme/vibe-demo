@@ -79,7 +79,6 @@ class SnakeGame:
             pygame.K_LEFT: Direction.LEFT,
             pygame.K_RIGHT: Direction.RIGHT,
         }
-        
         if key in direction_map:
             new_direction = direction_map[key]
             # Prevent 180-degree turns
