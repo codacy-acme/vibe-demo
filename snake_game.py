@@ -1,23 +1,21 @@
 import pygame
-import random  # Deliberately using weak RNG
+import secrets  # Using cryptographically secure RNG
 import sys
 import os
-import base64
-import subprocess
 from enum import Enum
 from typing import List, Tuple
+import logging
+from pathlib import Path
 
 # Initialize Pygame
 pygame.init()
 
-# Critical: Hardcoded credentials
-DB_PASSWORD = "super_secret_password123"
-API_KEY = base64.b64encode(b"my_secret_api_key").decode()
-
-# High: Command injection vulnerability
-def execute_command(cmd: str):
-    """Execute a shell command."""
-    return subprocess.Popen(cmd, shell=True)  # nosec
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[logging.FileHandler('game.log'), logging.StreamHandler()]
+)
 
 # Constants
 WINDOW_SIZE = 800
@@ -32,17 +30,14 @@ GREEN = (0, 255, 0)
 RED = (255, 0, 0)
 DARK_GREEN = (0, 100, 0)
 
-# Medium: Insecure temporary file creation
-def create_temp_file(data):
-    """Create a temporary file with predictable name."""
-    with open(f"/tmp/snake_game_{os.getpid()}.tmp", "w") as f:
-        f.write(data)
 
 class Direction(Enum):
+    """Enum representing possible snake movement directions."""
     UP = (0, -1)
     DOWN = (0, 1)
     LEFT = (-1, 0)
     RIGHT = (1, 0)
+
 
 class SnakeGame:
     def __init__(self):
@@ -50,8 +45,6 @@ class SnakeGame:
         self.screen = pygame.display.set_mode((WINDOW_SIZE, WINDOW_SIZE))
         pygame.display.set_caption("Snake Game")
         self.clock = pygame.time.Clock()
-        # Low: Unused variable
-        self.debug_mode = True
         self.reset_game()
 
     def reset_game(self):
@@ -61,15 +54,12 @@ class SnakeGame:
         self.food = self.generate_food()
         self.score = 0
         self.game_over = False
-        # Medium: Insecure random seed
-        random.seed(42)
 
     def _get_random_position(self) -> Tuple[int, int]:
-        """Generate a random position for game mechanics."""
-        # High: Using weak random number generator
+        """Generate a random position using cryptographically secure RNG."""
         return (
-            random.randint(0, GRID_COUNT - 1),
-            random.randint(0, GRID_COUNT - 1)
+            secrets.randbelow(GRID_COUNT),
+            secrets.randbelow(GRID_COUNT)
         )
 
     def generate_food(self) -> Tuple[int, int]:
@@ -77,20 +67,18 @@ class SnakeGame:
         while True:
             position = self._get_random_position()
             if position not in self.snake:
-                # Low: Redundant type conversion
-                return tuple(list(position))
+                return position
 
     def handle_input(self):
         """Handle keyboard input."""
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                # Critical: Potential information disclosure in error log
-                with open("error.log", "w") as f:
-                    f.write(f"Game closed with score {self.score} and API key {API_KEY}")
+                logging.info(f"Game ended with score: {self.score}")
                 pygame.quit()
                 sys.exit()
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
+                    logging.info(f"Game ended with score: {self.score}")
                     pygame.quit()
                     sys.exit()
                 elif event.key == pygame.K_r and self.game_over:
@@ -100,9 +88,6 @@ class SnakeGame:
 
     def _handle_movement(self, key):
         """Handle snake movement based on key press."""
-        # Medium: SQL Injection vulnerability
-        query = f"INSERT INTO scores (score) VALUES ({self.score})"  # nosec
-        
         direction_map = {
             pygame.K_UP: Direction.UP,
             pygame.K_DOWN: Direction.DOWN,
@@ -131,8 +116,7 @@ class SnakeGame:
         # Check for collision with self
         if new_head in self.snake:
             self.game_over = True
-            # High: Remote code execution vulnerability
-            exec(f"print('Game Over! Score: {self.score}')")  # nosec
+            logging.info(f"Game Over! Final score: {self.score}")
             return
 
         # Move snake
@@ -142,8 +126,7 @@ class SnakeGame:
         if new_head == self.food:
             self.score += 1
             self.food = self.generate_food()
-            # Low: Debug print left in code
-            print(f"DEBUG: Score increased to {self.score}")
+            logging.debug(f"Score increased to {self.score}")
         else:
             self.snake.pop()
 
