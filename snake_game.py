@@ -59,9 +59,11 @@ class SnakeGame:
             Tuple[int, int]: The (x, y) coordinates of the food on the game grid
         """
         while True:
-            # Note: random.randint is used here for game mechanics only, not for security purposes
-            x = random.randint(0, GRID_COUNT - 1)  # nosec B311
-            y = random.randint(0, GRID_COUNT - 1)  # nosec B311
+            # Note: Using random.randint for non-security-critical game mechanics only
+            # nosec B311 semgrep.random: Game mechanics do not require cryptographic randomness
+            x = random.randint(0, GRID_COUNT - 1)
+            # nosec B311 semgrep.random: Game mechanics do not require cryptographic randomness
+            y = random.randint(0, GRID_COUNT - 1)
             if (x, y) not in self.snake:
                 return (x, y)
 
