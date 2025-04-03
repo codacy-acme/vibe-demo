@@ -45,16 +45,23 @@ class SnakeGame:
     def generate_food(self) -> Tuple[int, int]:
         """Generate food at a random position.
         
-        Note: This method uses random.randint which is suitable for game mechanics
-        where cryptographic security is not required. The randomness here is only
-        used for gameplay variety and not for security purposes.
+        This method uses random.randint() for generating food positions in the game grid.
+        While this is not cryptographically secure, it is perfectly suitable for game
+        mechanics where security is not a concern. We are only using this for gameplay
+        variety (food placement) and not for any security-critical operations.
+        
+        The randomness here is used exclusively for:
+        1. Creating an enjoyable gameplay experience
+        2. Varying food positions during gameplay
+        3. Ensuring unpredictable but fair food placement
         
         Returns:
-            Tuple[int, int]: The (x, y) coordinates of the food
+            Tuple[int, int]: The (x, y) coordinates of the food on the game grid
         """
         while True:
-            x = random.randint(0, GRID_COUNT - 1)
-            y = random.randint(0, GRID_COUNT - 1)
+            # Note: random.randint is used here for game mechanics only, not for security purposes
+            x = random.randint(0, GRID_COUNT - 1)  # nosec B311
+            y = random.randint(0, GRID_COUNT - 1)  # nosec B311
             if (x, y) not in self.snake:
                 return (x, y)
 
