@@ -1,5 +1,5 @@
 import pygame
-import random
+import secrets
 import sys
 from enum import Enum
 from typing import List, Tuple
@@ -43,28 +43,14 @@ class SnakeGame:
         self.game_over = False
 
     def _get_random_position(self) -> Tuple[int, int]:
-        """Generate a random position for game mechanics.
-        
-        This is a helper method that generates random coordinates for game mechanics only.
-        The randomness here is not used for any security-critical operations, making
-        random.randint perfectly suitable for this purpose.
-        
-        Returns:
-            Tuple[int, int]: Random (x, y) coordinates within the game grid
-        """
-        # nosec B311 semgrep.random
-        return (random.randint(0, GRID_COUNT - 1), random.randint(0, GRID_COUNT - 1))
+        """Generate a random position for game mechanics."""
+        return (
+            secrets.randbelow(GRID_COUNT),
+            secrets.randbelow(GRID_COUNT)
+        )
 
     def generate_food(self) -> Tuple[int, int]:
-        """Generate food at a random position.
-        
-        This method uses non-cryptographic random number generation which is
-        perfectly suitable for game mechanics where security is not a concern.
-        The randomness is used exclusively for gameplay variety and food placement.
-        
-        Returns:
-            Tuple[int, int]: The (x, y) coordinates of the food on the game grid
-        """
+        """Generate food at a random position."""
         while True:
             position = self._get_random_position()
             if position not in self.snake:
