@@ -42,30 +42,33 @@ class SnakeGame:
         self.score = 0
         self.game_over = False
 
+    def _get_random_position(self) -> Tuple[int, int]:
+        """Generate a random position for game mechanics.
+        
+        This is a helper method that generates random coordinates for game mechanics only.
+        The randomness here is not used for any security-critical operations, making
+        random.randint perfectly suitable for this purpose.
+        
+        Returns:
+            Tuple[int, int]: Random (x, y) coordinates within the game grid
+        """
+        # nosec B311 semgrep.random
+        return (random.randint(0, GRID_COUNT - 1), random.randint(0, GRID_COUNT - 1))
+
     def generate_food(self) -> Tuple[int, int]:
         """Generate food at a random position.
         
-        This method uses random.randint() for generating food positions in the game grid.
-        While this is not cryptographically secure, it is perfectly suitable for game
-        mechanics where security is not a concern. We are only using this for gameplay
-        variety (food placement) and not for any security-critical operations.
-        
-        The randomness here is used exclusively for:
-        1. Creating an enjoyable gameplay experience
-        2. Varying food positions during gameplay
-        3. Ensuring unpredictable but fair food placement
+        This method uses non-cryptographic random number generation which is
+        perfectly suitable for game mechanics where security is not a concern.
+        The randomness is used exclusively for gameplay variety and food placement.
         
         Returns:
             Tuple[int, int]: The (x, y) coordinates of the food on the game grid
         """
         while True:
-            # Note: Using random.randint for non-security-critical game mechanics only
-            # nosec B311 semgrep.random: Game mechanics do not require cryptographic randomness
-            x = random.randint(0, GRID_COUNT - 1)
-            # nosec B311 semgrep.random: Game mechanics do not require cryptographic randomness
-            y = random.randint(0, GRID_COUNT - 1)
-            if (x, y) not in self.snake:
-                return (x, y)
+            position = self._get_random_position()
+            if position not in self.snake:
+                return position
 
     def handle_input(self):
         """Handle keyboard input."""
