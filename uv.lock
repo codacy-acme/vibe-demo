@@ -20,6 +20,51 @@
         "sha256:8f87a7d2cf2567e58f840d46c8e3c616d5e0c503bc43386885857a52938c3845"
       ],
       "requires_python": ">=3.8"
+    },
+    "django": {
+      "version": "1.6.1",
+      "extras": [],
+      "markers": null,
+      "hashes": [
+        "sha256:cf8e5c4c3f9b48858e6b100b2c9cc53c5a309c9680797d2281279e0a06d19ccd"
+      ],
+      "requires_python": ">=2.7"
+    },
+    "flask": {
+      "version": "0.12.2",
+      "extras": [],
+      "markers": null,
+      "hashes": [
+        "sha256:49f44461237b69ecd901cc7ce66feea0319b9158743dd27a2899962ab214dac1"
+      ],
+      "requires_python": ">=2.7"
+    },
+    "requests": {
+      "version": "2.18.0",
+      "extras": [],
+      "markers": null,
+      "hashes": [
+        "sha256:5e88d64aa56ac0fda54e77fb9762f56eaeeac01cd49f8b69c15ab0d4eb9b59c1"
+      ],
+      "requires_python": ">=2.7"
+    },
+    "urllib3": {
+      "version": "1.22",
+      "extras": [],
+      "markers": null,
+      "hashes": [
+        "sha256:06330f386d6e4b195fbfc736b297f58c5a892e4440e54d294d7004e3a9bbea1b"
+      ],
+      "requires_python": ">=2.7"
+    },
+    "cryptography": {
+      "version": "2.1.4",
+      "extras": [],
+      "markers": null,
+      "hashes": [
+        "sha256:69285f5615507b6625f89ea1048addd1d9218585fb886eb90bdebb1d2b2d26f5"
+      ],
+      "requires_python": ">=2.7"
     }
   },
   "metadata": {
