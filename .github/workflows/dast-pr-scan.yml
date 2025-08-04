@@ -37,32 +37,56 @@ jobs:
         timeout 60 bash -c 'until curl -f http://localhost:3008/api/health; do sleep 2; done'
 
     - name: Create ZAP output directory
-      run: mkdir -p zap_output
+      run: |
+        mkdir -p zap_output
+        chmod 777 zap_output
 
     - name: Run OWASP ZAP Baseline Scan (Fast)
       run: |
-        docker run --rm \
-          -v ${{ github.workspace }}/zap_output:/zap/wrk:rw \
-          --network host \
-          ghcr.io/zaproxy/zaproxy:stable \
-          zap-baseline.py \
-          -t http://localhost:3008 \
-          -J /zap/wrk/zap_report.json \
-          -r /zap/wrk/zap_report.html \
-          -I || true
+        # Use our custom script for better permission handling
+        if [ -f "scripts/run-zap-scan.sh" ]; then
+          ./scripts/run-zap-scan.sh
+        else
+          # Fallback to direct Docker command with better error handling
+          mkdir -p zap_output
+          chmod 777 zap_output
+          
+          docker run --rm \
+            -v ${{ github.workspace }}/zap_output:/zap/wrk \
+            --network host \
+            ghcr.io/zaproxy/zaproxy:stable \
+            bash -c "
+              zap-baseline.py -t http://localhost:3008 -J /zap/wrk/zap_report.json -I || true
+              chmod 666 /zap/wrk/* 2>/dev/null || true
+            "
+        fi
 
     - name: Upload ZAP Report to Codacy
       if: always()
       run: |
+        echo "Checking for ZAP report files..."
+        ls -la zap_output/ || echo "No zap_output directory found"
+        
         if [ -f "zap_output/zap_report.json" ]; then
-          curl -X POST https://app.codacy.com/api/v3/organizations/gh/codacy-acme/security/tools/dast/ZAP/reports \
-            -H "api-token: ${{ secrets.CODACY_API_TOKEN }}" \
-            -H "Content-Type: multipart/form-data" \
-            -H "Accept: application/json" \
-            -F "file=@./zap_output/zap_report.json" \
-            -F "reportFormat=json"
+          echo "Found ZAP JSON report, validating format..."
+          
+          # Validate the report format
+          if python3 scripts/validate-zap-report.py zap_output/zap_report.json; then
+            echo "Report validation passed, uploading to Codacy..."
+            
+            curl -X POST https://app.codacy.com/api/v3/organizations/gh/codacy-acme/security/tools/dast/ZAP/reports \
+              -H "api-token: ${{ secrets.CODACY_API_TOKEN }}" \
+              -H "Content-Type: multipart/form-data" \
+              -H "Accept: application/json" \
+              -F "file=@./zap_output/zap_report.json" \
+              -F "reportFormat=json" \
+              -w "HTTP Status: %{http_code}\n" || echo "Failed to upload to Codacy"
+          else
+            echo "Report validation failed, skipping Codacy upload"
+          fi
         else
-          echo "ZAP report not found"
+          echo "ZAP JSON report not found, checking what files exist..."
+          find zap_output -type f -name "*" 2>/dev/null || echo "No files found in zap_output"
         fi
 
     - name: Comment PR with scan results

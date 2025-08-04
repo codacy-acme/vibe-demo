@@ -91,22 +91,38 @@ mkdir -p zap_output
 
 # Step 6: Run ZAP baseline scan
 echo "🔍 Running OWASP ZAP baseline scan..."
-if docker run --rm \
-    -v "$(pwd)/zap_output:/zap/wrk:rw" \
-    --network host \
-    ghcr.io/zaproxy/zaproxy:stable \
-    zap-baseline.py \
-    -t http://localhost:3008 \
-    -J /zap/wrk/zap_report.json \
-    -r /zap/wrk/zap_report.html \
-    -x /zap/wrk/zap_report.xml \
-    -I; then
-    print_status "ZAP scan completed"
+
+# Use our improved scanning script
+if [ -f "scripts/run-zap-scan.sh" ]; then
+    print_status "Using custom ZAP scan script"
+    ./scripts/run-zap-scan.sh
 else
-    print_warning "ZAP scan completed with warnings (this is normal)"
+    print_warning "Custom script not found, using fallback method"
+    
+    # Fallback method with better permission handling
+    docker run --rm \
+        -v "$(pwd)/zap_output:/zap/wrk" \
+        --network host \
+        ghcr.io/zaproxy/zaproxy:stable \
+        bash -c "
+            zap-baseline.py -t http://localhost:3008 -J /zap/wrk/zap_report.json -I || true
+            chmod 666 /zap/wrk/* 2>/dev/null || true
+        "
 fi
 
-# Step 7: Check if reports were generated
+# Step 7: Validate the report
+echo "🔍 Validating ZAP report..."
+if [ -f "scripts/validate-zap-report.py" ]; then
+    if python3 scripts/validate-zap-report.py zap_output/zap_report.json; then
+        print_status "Report validation passed"
+    else
+        print_warning "Report validation failed"
+    fi
+else
+    print_warning "Validation script not found"
+fi
+
+# Step 8: Check if reports were generated
 echo "📊 Checking scan results..."
 if [ -f "zap_output/zap_report.json" ]; then
     print_status "JSON report generated: zap_output/zap_report.json"
@@ -114,19 +130,11 @@ else
     print_error "JSON report not found"
 fi
 
-if [ -f "zap_output/zap_report.html" ]; then
-    print_status "HTML report generated: zap_output/zap_report.html"
-else
-    print_warning "HTML report not found"
-fi
+# Check for any other generated files
+echo "📁 Files in zap_output directory:"
+ls -la zap_output/ 2>/dev/null || echo "No files found"
 
-if [ -f "zap_output/zap_report.xml" ]; then
-    print_status "XML report generated: zap_output/zap_report.xml"
-else
-    print_warning "XML report not found"
-fi
-
-# Step 8: Display summary
+# Step 9: Display summary
 echo "📈 Scan Summary:"
 echo "================"
 
@@ -137,8 +145,13 @@ if [ -f "zap_output/zap_report.json" ]; then
         SITE_ALERTS=$(jq '.site[0].alerts | length' zap_output/zap_report.json 2>/dev/null || echo "unknown")
         echo "Total alerts found: $SITE_ALERTS"
     else
-        echo "Install 'jq' for detailed JSON parsing"
-        echo "Basic file check completed - see reports for details"
+        print_warning "Install 'jq' for detailed JSON parsing"
+        # Use our validation script for basic analysis
+        if [ -f "scripts/validate-zap-report.py" ]; then
+            python3 scripts/validate-zap-report.py zap_output/zap_report.json || true
+        else
+            echo "Basic file check completed - see reports for details"
+        fi
     fi
 else
     print_error "No JSON report available for analysis"
