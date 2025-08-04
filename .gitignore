@@ -17,6 +17,7 @@ env/
 # IDE specific files
 .vscode/
 .idea/
+.cursor/
 *.swp
 *.swo
 
