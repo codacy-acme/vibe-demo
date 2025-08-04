@@ -1,0 +1,92 @@
+name: DAST Security Scan
+
+on:
+  push:
+    branches: [ main, develop, dast-* ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  dast-scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Build and start application
+      run: |
+        # Build the Docker image
+        docker build -t dast-demo-app .
+        
+        # Start the application in background
+        docker run -d -p 3008:3008 --name dast-app dast-demo-app
+        
+        # Wait for application to be ready
+        timeout 60 bash -c 'until curl -f http://localhost:3008/api/health; do sleep 2; done'
+
+    - name: Create ZAP output directory
+      run: mkdir -p zap_output
+
+    - name: Run OWASP ZAP Full Scan
+      run: |
+        docker run --rm \
+          -v ${{ github.workspace }}/zap_output:/zap/wrk:rw \
+          --network host \
+          ghcr.io/zaproxy/zaproxy:stable \
+          zap-full-scan.py \
+          -t http://localhost:3008 \
+          -J /zap/wrk/zap_report.json \
+          -r /zap/wrk/zap_report.html \
+          -x /zap/wrk/zap_report.xml \
+          -I || true
+
+    - name: Upload ZAP Report to Codacy
+      if: always()
+      run: |
+        if [ -f "zap_output/zap_report.json" ]; then
+          curl -X POST https://app.codacy.com/api/v3/organizations/gh/codacy-acme/security/tools/dast/ZAP/reports \
+            -H "api-token: ${{ secrets.CODACY_API_TOKEN }}" \
+            -H "Content-Type: multipart/form-data" \
+            -H "Accept: application/json" \
+            -F "file=@./zap_output/zap_report.json" \
+            -F "reportFormat=json"
+        else
+          echo "ZAP report not found"
+          exit 1
+        fi
+
+    - name: Upload ZAP Reports as Artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: zap-reports
+        path: zap_output/
+        retention-days: 30
+
+    - name: Stop and remove containers
+      if: always()
+      run: |
+        docker stop dast-app || true
+        docker rm dast-app || true
+
+    - name: Display ZAP Summary
+      if: always()
+      run: |
+        if [ -f "zap_output/zap_report.json" ]; then
+          echo "DAST scan completed successfully"
+          echo "Reports generated:"
+          ls -la zap_output/
+        else
+          echo "DAST scan failed - no reports generated"
+        fi

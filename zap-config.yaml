@@ -1,0 +1,40 @@
+# ZAP Configuration File for DAST Scanning
+
+# Context configuration
+contexts:
+  - name: "DAST Demo App"
+    urls:
+      - "http://localhost:3008.*"
+    includePaths:
+      - "http://localhost:3008/.*"
+    excludePaths:
+      - "http://localhost:3008/static/.*"
+      - "http://localhost:3008/favicon.ico"
+
+# Authentication (if needed)
+# authentication:
+#   method: "form"
+#   loginUrl: "http://localhost:3008/login"
+#   usernameField: "username"
+#   passwordField: "password"
+#   username: "testuser"
+#   password: "testpass"
+
+# Session management
+sessionManagement:
+  method: "cookie"
+
+# Active scan configuration
+activeScan:
+  policy: "Default Policy"
+  strength: "Medium"
+
+# Spider configuration
+spider:
+  maxDepth: 5
+  maxChildren: 10
+
+# Rules to ignore (optional)
+# ignoreRules:
+#   - "10021"  # X-Content-Type-Options Missing
+#   - "10020"  # X-Frame-Options Missing
