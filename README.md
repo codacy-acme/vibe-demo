@@ -1,121 +1,72 @@
-# DAST Demo Application
+# Weather Demo Application
 
-This repository contains a Flask web application designed for Dynamic Application Security Testing (DAST) with automated GitHub Actions integration and Codacy reporting.
+A simple Python application demonstrating the use of `requests` and `urllib3` libraries for web interactions.
 
-## 🚀 Features
+## Features
 
-- **Flask Web Application**: Multi-endpoint application perfect for DAST testing
-- **Security Headers**: Comprehensive security headers implementation
-- **GitHub Actions**: Automated DAST scanning on commits and PRs
-- **Codacy Integration**: Automatic upload of scan results to Codacy
-- **Docker Support**: Containerized application for consistent testing
-- **Multiple Scan Types**: Full scans for main branches, baseline scans for PRs
-- **Security Updates**: All dependencies updated to latest secure versions
+- **Weather API Integration**: Fetch weather data using the requests library
+- **HTTP Testing**: Test endpoints using urllib3 for low-level HTTP operations
+- **Error Handling**: Robust error handling for network requests
+- **Clean Output**: Formatted display of weather information and API responses
 
-## 📦 Quick Start
+## Requirements
 
-### Prerequisites
+- Python 3.6+
+- requests 2.24.1
+- urllib3 1.0.0
 
-- Docker and Docker Compose
-- Python 3.9+
-- GitHub repository with Actions enabled
-- Codacy account with API token
+## Installation
 
-### Local Development
-
-1. **Clone and setup:**
+1. Install dependencies:
    ```bash
-   git clone <your-repo-url>
-   cd vibe-demo
+   pip install -r requirements.txt
    ```
 
-2. **Run with Docker:**
+2. Run the demo:
    ```bash
-   docker-compose up -d --build
+   python weather_demo.py
    ```
 
-3. **Test the application:**
-   ```bash
-   python test_dast_app.py
-   ```
+## Usage
 
-4. **Run local DAST scan:**
-   ```bash
-   mkdir -p zap_output
-   docker run --rm \
-     -v $(pwd)/zap_output:/zap/wrk:rw \
-     --network host \
-     ghcr.io/zaproxy/zaproxy:stable \
-     zap-baseline.py \
-     -t http://localhost:3008 \
-     -J /zap/wrk/zap_report.json \
-     -r /zap/wrk/zap_report.html
-## 🔧 GitHub Actions Setup
+The application includes several demo features:
 
-### 1. Add Codacy API Token
+### 1. HTTP Endpoint Testing
+Tests public API endpoints and displays response information including:
+- HTTP status codes
+- Response headers
+- Response data analysis
 
-1. Go to your repository → Settings → Secrets and variables → Actions
-2. Click "New repository secret"
-3. Name: `CODACY_API_TOKEN`
-4. Value: Your Codacy API token
-
-### 2. Workflow Files
-
-The repository includes two workflows:
-
-- **`dast-scan.yml`**: Full DAST scan for main/develop branches
-- **`dast-pr-scan.yml`**: Fast baseline scan for pull requests with PR comments
-
-### 3. Trigger Scans
-
-Scans are automatically triggered on:
-- Push to `main`, `develop`, or `dast-*` branches
-- Pull requests to `main` or `develop` branches
-
-## 🔒 Application Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/` | GET | Home page with navigation |
-| `/about` | GET | About page |
-| `/contact` | GET | Contact form |
-| `/contact` | POST | Form submission handler |
-| `/api/health` | GET | Health check endpoint |
-| `/robots.txt` | GET | Robots file |
-| `/sitemap.xml` | GET | XML sitemap |
-
-## 📊 Security Features
-
-- Content Security Policy (CSP)
-- X-Frame-Options header
-- X-Content-Type-Options header
-- Permissions-Policy header
-- Cache-Control headers
-- Server header removal
-- Updated secure dependencies (requests 2.32.4, urllib3 2.5.0)
-
-## 🛠️ Troubleshooting
-
-### Common Issues
-
-1. **Application not starting**: Check if port 3008 is available
-2. **ZAP scan fails**: Ensure application is fully started before scanning
-3. **Codacy upload fails**: Verify API token is correct
-4. **Docker issues**: Ensure Docker daemon is running
-
-### Debug Commands
-
-```bash
-# Check application logs
-docker logs dast-app
-
-# Test application manually
-curl http://localhost:3008/api/health
-
-# Validate ZAP report
-python -m json.tool zap_output/zap_report.json
+### 2. Weather API Demo
+Shows how to integrate with weather APIs (requires API key for full functionality):
+```python
+weather_app = WeatherApp()
+weather_data = weather_app.get_weather_by_city('London', 'your_api_key')
+weather_app.display_weather(weather_data)
 ```
 
-For more detailed information, see `DAST_README.md`.
+### 3. Library Version Display
+Shows the versions of the installed libraries to verify correct installation.
 
-This is a demonstration application. The weather API functionality requires a valid API key from OpenWeatherMap to work properly.
+## API Key Setup (Optional)
+
+To use the weather functionality with real data:
+
+1. Get a free API key from [OpenWeatherMap](https://openweathermap.org/api)
+2. Modify the script to include your API key
+3. Test with real weather data
+
+## Libraries Used
+
+- **requests 2.24.1**: High-level HTTP library for API interactions
+- **urllib3 1.0.0**: Low-level HTTP library for direct HTTP operations
+
+## Demo Output
+
+The application will display:
+- HTTP endpoint test results
+- Library version information
+- Example usage patterns
+- Success confirmation
+
+This demo showcases both libraries working together to handle different types of web requests and API interactions.
