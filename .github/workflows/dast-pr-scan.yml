@@ -143,6 +143,36 @@ jobs:
           const lowAlerts = parseInt(process.env.LOW_ALERTS || '0');
           const totalAlerts = parseInt(process.env.TOTAL_ALERTS || '0');
           
+          // First, find and delete any existing DAST comments from github-actions bot
+          try {
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            
+            const dastComments = comments.data.filter(comment => 
+              comment.user.login === 'github-actions[bot]' && 
+              comment.body.includes('🔒 DAST Security Scan Results')
+            );
+            
+            for (const comment of dastComments) {
+              console.log(`Deleting previous DAST comment: ${comment.id}`);
+              await github.rest.issues.deleteComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: comment.id,
+              });
+            }
+            
+            if (dastComments.length > 0) {
+              console.log(`Deleted ${dastComments.length} previous DAST comment(s)`);
+            }
+          } catch (error) {
+            console.log(`Warning: Could not delete previous comments: ${error.message}`);
+          }
+          
+          // Now create the new comment
           let comment = '## 🔒 DAST Security Scan Results\n\n';
           
           if (scanSuccess) {
@@ -169,7 +199,11 @@ jobs:
             comment += 'This may indicate an infrastructure issue. Please check the workflow logs for more details.';
           }
           
-          github.rest.issues.createComment({
+          // Add timestamp to help with debugging
+          const timestamp = new Date().toISOString();
+          comment += `\n\n---\n*Last updated: ${timestamp}*`;
+          
+          await github.rest.issues.createComment({
             issue_number: context.issue.number,
             owner: context.repo.owner,
             repo: context.repo.repo,
