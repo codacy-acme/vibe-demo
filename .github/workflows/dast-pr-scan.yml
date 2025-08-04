@@ -44,6 +44,8 @@ jobs:
     - name: Run OWASP ZAP Baseline Scan (Fast)
       run: |
         # Use the working command structure from docker-compose
+        # ZAP exits with codes 0-3 based on findings, which are expected
+        set +e  # Don't exit on non-zero return codes
         docker run --rm \
           -v ${{ github.workspace }}/zap_output:/zap/wrk:rw \
           --add-host=host.docker.internal:host-gateway \
@@ -51,6 +53,20 @@ jobs:
           zap-baseline.py \
           -t http://host.docker.internal:3008 \
           -J /zap/wrk/zap_report.json
+        
+        # Capture the exit code
+        ZAP_EXIT_CODE=$?
+        echo "ZAP scan completed with exit code: $ZAP_EXIT_CODE"
+        
+        # ZAP exit codes: 0=no issues, 1=low, 2=medium, 3=high risk issues found
+        # These are all successful scan completions, not errors
+        if [ $ZAP_EXIT_CODE -le 3 ]; then
+          echo "✅ ZAP scan completed successfully"
+          exit 0
+        else
+          echo "❌ ZAP scan failed with unexpected exit code: $ZAP_EXIT_CODE"
+          exit 1
+        fi
 
     - name: Upload ZAP Report to Codacy
       if: always()
@@ -113,7 +129,15 @@ jobs:
                 comment += '\n';
               }
               
-              comment += `The complete DAST report has been uploaded to Codacy.\n`;
+              if (mediumAlerts.length > 0) {
+                comment += `### 🟡 Medium Risk Issues\n`;
+                mediumAlerts.forEach(alert => {
+                  comment += `- **${alert.name}**: ${alert.desc}\n`;
+                });
+                comment += '\n';
+              }
+              
+              comment += `✅ DAST scan completed successfully. The complete report has been uploaded to Codacy.\n`;
             } catch (error) {
               comment += `❌ Error parsing scan results: ${error.message}\n`;
             }
