@@ -119,8 +119,8 @@ class HttpTester:
 
         except urllib3.exceptions.HTTPError as e:
             print(f"HTTP Error: {e}")
-        except Exception as e:
-            print(f"Error: {e}")
+        except (json.JSONDecodeError, UnicodeDecodeError) as e:
+            print(f"Data parsing error: {e}")
 
 
 def main():
@@ -128,33 +128,33 @@ def main():
     print("🐍 Python Weather Demo Application")
     print("Using requests 2.24.1 and urllib3 1.0.0")
     print("=" * 50)
-    
-    # Initialize applications
-    weather_app = WeatherApp()
+
+    # Initialize HTTP tester
     http_tester = HttpTester()
-    
+
     # Demo 1: Test a public API endpoint
     print("\n📡 Demo 1: Testing public API endpoints")
     test_urls = [
         "https://httpbin.org/get",
         "https://jsonplaceholder.typicode.com/posts/1"
     ]
-    
+
     for url in test_urls:
         http_tester.test_endpoint(url)
-    
+
     # Demo 2: Weather API (would need API key for real use)
     print("\n🌦️  Demo 2: Weather API Demo")
     print("Note: To use weather functionality, you need an OpenWeatherMap API key")
     print("Example usage:")
+    print("  weather_app = WeatherApp()")
     print("  weather_data = weather_app.get_weather_by_city('London', 'your_api_key')")
     print("  weather_app.display_weather(weather_data)")
-    
+
     # Demo 3: Show library versions
-    print(f"\n📚 Library versions:")
-    print(f"  requests: {requests.__version__}")
-    print(f"  urllib3: {urllib3.__version__}")
-    
+    print("\n📚 Library versions:")
+    print("  requests: " + requests.__version__)
+    print("  urllib3: " + urllib3.__version__)
+
     print("\n✅ Demo completed successfully!")
 
 
