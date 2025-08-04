@@ -42,26 +42,14 @@ jobs:
 
     - name: Run OWASP ZAP Full Scan
       run: |
-        # Use our custom script for better permission handling
-        if [ -f "scripts/run-zap-scan.sh" ]; then
-          # Modify script for full scan and correct hostname
-          sed 's/zap-baseline.py/zap-full-scan.py/g; s|http://localhost:3008|http://host.docker.internal:3008|g' scripts/run-zap-scan.sh > scripts/run-zap-full-scan-docker.sh
-          chmod +x scripts/run-zap-full-scan-docker.sh
-          ./scripts/run-zap-full-scan-docker.sh
-        else
-          # Fallback to direct Docker command with correct hostname
-          mkdir -p zap_output
-          chmod 777 zap_output
-          
-          docker run --rm \
-            -v ${{ github.workspace }}/zap_output:/zap/wrk \
-            --add-host=host.docker.internal:host-gateway \
-            ghcr.io/zaproxy/zaproxy:stable \
-            bash -c "
-              zap-full-scan.py -t http://host.docker.internal:3008 -J /zap/wrk/zap_report.json -I || true
-              chmod 666 /zap/wrk/* 2>/dev/null || true
-            "
-        fi
+        # Use the working command structure from docker-compose
+        docker run --rm \
+          -v ${{ github.workspace }}/zap_output:/zap/wrk:rw \
+          --add-host=host.docker.internal:host-gateway \
+          ghcr.io/zaproxy/zaproxy:stable \
+          zap-full-scan.py \
+          -t http://host.docker.internal:3008 \
+          -J /zap/wrk/zap_report.json
 
     - name: Upload ZAP Report to Codacy
       if: always()
