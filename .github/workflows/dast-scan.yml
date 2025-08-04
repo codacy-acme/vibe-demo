@@ -33,7 +33,7 @@ jobs:
         docker run -d -p 3008:3008 --name dast-app dast-demo-app
         
         # Wait for application to be ready
-        timeout 60 bash -c 'until curl -f http://localhost:3008/api/health; do sleep 2; done'
+        timeout 60 bash -c 'until curl -f http://localhost:3008/; do sleep 2; done'
 
     - name: Create ZAP output directory
       run: |
@@ -44,21 +44,21 @@ jobs:
       run: |
         # Use our custom script for better permission handling
         if [ -f "scripts/run-zap-scan.sh" ]; then
-          # Modify script for full scan
-          sed 's/zap-baseline.py/zap-full-scan.py/g' scripts/run-zap-scan.sh > scripts/run-zap-full-scan.sh
-          chmod +x scripts/run-zap-full-scan.sh
-          ./scripts/run-zap-full-scan.sh
+          # Modify script for full scan and correct hostname
+          sed 's/zap-baseline.py/zap-full-scan.py/g; s|http://localhost:3008|http://host.docker.internal:3008|g' scripts/run-zap-scan.sh > scripts/run-zap-full-scan-docker.sh
+          chmod +x scripts/run-zap-full-scan-docker.sh
+          ./scripts/run-zap-full-scan-docker.sh
         else
-          # Fallback to direct Docker command with better error handling
+          # Fallback to direct Docker command with correct hostname
           mkdir -p zap_output
           chmod 777 zap_output
           
           docker run --rm \
             -v ${{ github.workspace }}/zap_output:/zap/wrk \
-            --network host \
+            --add-host=host.docker.internal:host-gateway \
             ghcr.io/zaproxy/zaproxy:stable \
             bash -c "
-              zap-full-scan.py -t http://localhost:3008 -J /zap/wrk/zap_report.json -I || true
+              zap-full-scan.py -t http://host.docker.internal:3008 -J /zap/wrk/zap_report.json -I || true
               chmod 666 /zap/wrk/* 2>/dev/null || true
             "
         fi

@@ -8,7 +8,7 @@ set -e
 echo "🔍 Starting ZAP scan with proper permissions..."
 
 # Set up variables
-TARGET_URL="http://localhost:3008"
+TARGET_URL="http://host.docker.internal:3008"
 OUTPUT_DIR="zap_output"
 REPORT_FILE="$OUTPUT_DIR/zap_report.json"
 
@@ -25,7 +25,7 @@ docker run --rm \
   -v "$(pwd)/$OUTPUT_DIR:/zap/wrk:rw" \
   -e "ZAP_USER=$(id -u)" \
   -e "ZAP_GROUP=$(id -g)" \
-  --network host \
+  --add-host=host.docker.internal:host-gateway \
   ghcr.io/zaproxy/zaproxy:stable \
   bash -c "
     # Create the JSON report using ZAP's API

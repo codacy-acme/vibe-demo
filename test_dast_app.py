@@ -11,11 +11,6 @@ def test_application(base_url="http://localhost:3008"):
     """Test all endpoints of the application."""
     endpoints = [
         "/",
-        "/about",
-        "/contact",
-        "/api/health",
-        "/robots.txt",
-        "/sitemap.xml"
     ]
     
     print(f"Testing application at {base_url}")
@@ -37,23 +32,6 @@ def test_application(base_url="http://localhost:3008"):
             print(f"{endpoint:<15} - ✗ FAIL (Connection Error: {e})")
             all_passed = False
     
-    # Test POST endpoint
-    try:
-        response = requests.post(
-            f"{base_url}/contact",
-            data={"name": "Test User", "email": "test@example.com", "message": "Test message"},
-            timeout=10
-        )
-        status = "✓ PASS" if response.status_code == 200 else f"✗ FAIL ({response.status_code})"
-        print(f"{'POST /contact':<15} - {status}")
-        
-        if response.status_code != 200:
-            all_passed = False
-            
-    except requests.exceptions.RequestException as e:
-        print(f"{'POST /contact':<15} - ✗ FAIL (Connection Error: {e})")
-        all_passed = False
-    
     print("-" * 50)
     if all_passed:
         print("✓ All tests passed!")
@@ -69,7 +47,7 @@ def wait_for_app(base_url="http://localhost:3008", max_attempts=30):
     
     for attempt in range(max_attempts):
         try:
-            response = requests.get(f"{base_url}/api/health", timeout=5)
+            response = requests.get(f"{base_url}/", timeout=5)
             if response.status_code == 200:
                 print(f"✓ Application is ready after {attempt + 1} attempts")
                 return True

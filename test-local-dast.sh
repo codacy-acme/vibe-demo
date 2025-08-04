@@ -76,8 +76,8 @@ if [ $attempt -eq $max_attempts ]; then
     exit 1
 fi
 
-# Step 4: Run application tests
-echo "🧪 Running application tests..."
+# Step 3: Test the application
+echo "🧪 Testing application endpoints..."
 if python3 test_dast_app.py; then
     print_status "Application tests passed"
 else
@@ -85,32 +85,27 @@ else
     exit 1
 fi
 
-# Step 5: Create output directory
+# Step 4: Create output directory
 echo "📁 Creating ZAP output directory..."
 mkdir -p zap_output
 
-# Step 6: Run ZAP baseline scan
+# Step 5: Run ZAP baseline scan
 echo "🔍 Running OWASP ZAP baseline scan..."
 
-# Use our improved scanning script
-if [ -f "scripts/run-zap-scan.sh" ]; then
-    print_status "Using custom ZAP scan script"
-    ./scripts/run-zap-scan.sh
-else
-    print_warning "Custom script not found, using fallback method"
-    
-    # Fallback method with better permission handling
-    docker run --rm \
-        -v "$(pwd)/zap_output:/zap/wrk" \
-        --network host \
-        ghcr.io/zaproxy/zaproxy:stable \
-        bash -c "
-            zap-baseline.py -t http://localhost:3008 -J /zap/wrk/zap_report.json -I || true
-            chmod 666 /zap/wrk/* 2>/dev/null || true
-        "
-fi
+# For local testing, we use localhost directly since we're not in GitHub Actions
+# The scripts/run-zap-scan.sh is designed for GitHub Actions with host.docker.internal
+echo "🚀 Running ZAP scan with local configuration..."
 
-# Step 7: Validate the report
+docker run --rm \
+    -v "$(pwd)/zap_output:/zap/wrk" \
+    --network host \
+    ghcr.io/zaproxy/zaproxy:stable \
+    bash -c "
+        zap-baseline.py -t http://localhost:3008 -J /zap/wrk/zap_report.json -I || true
+        chmod 666 /zap/wrk/* 2>/dev/null || true
+    "
+
+# Step 6: Validate the report
 echo "🔍 Validating ZAP report..."
 if [ -f "scripts/validate-zap-report.py" ]; then
     if python3 scripts/validate-zap-report.py zap_output/zap_report.json; then
@@ -122,7 +117,7 @@ else
     print_warning "Validation script not found"
 fi
 
-# Step 8: Check if reports were generated
+# Step 7: Check if reports were generated
 echo "📊 Checking scan results..."
 if [ -f "zap_output/zap_report.json" ]; then
     print_status "JSON report generated: zap_output/zap_report.json"
@@ -134,7 +129,7 @@ fi
 echo "📁 Files in zap_output directory:"
 ls -la zap_output/ 2>/dev/null || echo "No files found"
 
-# Step 9: Display summary
+# Step 8: Display summary
 echo "📈 Scan Summary:"
 echo "================"
 
