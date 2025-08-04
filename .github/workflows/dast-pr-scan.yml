@@ -123,6 +123,17 @@ jobs:
           echo "TOTAL_ALERTS=$TOTAL_COUNT" >> $GITHUB_ENV
           
           echo "Found alerts: High=$HIGH_COUNT, Medium=$MEDIUM_COUNT, Low=$LOW_COUNT, Total=$TOTAL_COUNT"
+          
+          # Also create a summary file for the next step to read
+          cat > scan_summary.json << EOF
+        {
+          "success": true,
+          "highAlerts": $HIGH_COUNT,
+          "mediumAlerts": $MEDIUM_COUNT,
+          "lowAlerts": $LOW_COUNT,
+          "totalAlerts": $TOTAL_COUNT
+        }
+        EOF
         else
           echo "SCAN_SUCCESS=false" >> $GITHUB_ENV
           echo "HIGH_ALERTS=0" >> $GITHUB_ENV
@@ -130,6 +141,17 @@ jobs:
           echo "LOW_ALERTS=0" >> $GITHUB_ENV
           echo "TOTAL_ALERTS=0" >> $GITHUB_ENV
           echo "No scan report found"
+          
+          # Create failure summary file
+          cat > scan_summary.json << EOF
+        {
+          "success": false,
+          "highAlerts": 0,
+          "mediumAlerts": 0,
+          "lowAlerts": 0,
+          "totalAlerts": 0
+        }
+        EOF
         fi
 
     - name: Comment PR with scan results
@@ -137,11 +159,32 @@ jobs:
       uses: actions/github-script@v7
       with:
         script: |
-          const scanSuccess = process.env.SCAN_SUCCESS === 'true';
-          const highAlerts = parseInt(process.env.HIGH_ALERTS || '0');
-          const mediumAlerts = parseInt(process.env.MEDIUM_ALERTS || '0');
-          const lowAlerts = parseInt(process.env.LOW_ALERTS || '0');
-          const totalAlerts = parseInt(process.env.TOTAL_ALERTS || '0');
+          const fs = require('fs');
+          
+          // Read scan summary from file as primary source
+          let scanData = { success: false, highAlerts: 0, mediumAlerts: 0, lowAlerts: 0, totalAlerts: 0 };
+          
+          try {
+            if (fs.existsSync('scan_summary.json')) {
+              const summaryContent = fs.readFileSync('scan_summary.json', 'utf8');
+              scanData = JSON.parse(summaryContent);
+              console.log('Scan summary loaded from file:', scanData);
+            } else {
+              console.log('scan_summary.json not found, falling back to environment variables');
+              // Fallback to environment variables
+              scanData.success = process.env.SCAN_SUCCESS === 'true';
+              scanData.highAlerts = parseInt(process.env.HIGH_ALERTS || '0');
+              scanData.mediumAlerts = parseInt(process.env.MEDIUM_ALERTS || '0');
+              scanData.lowAlerts = parseInt(process.env.LOW_ALERTS || '0');
+              scanData.totalAlerts = parseInt(process.env.TOTAL_ALERTS || '0');
+            }
+          } catch (error) {
+            console.log('Error reading scan summary:', error.message);
+            // Final fallback - check for report file directly
+            scanData.success = fs.existsSync('zap_output/zap_report.json');
+          }
+          
+          console.log('Final scan data:', scanData);
           
           // First, find and delete any existing DAST comments from github-actions bot
           try {
@@ -175,19 +218,19 @@ jobs:
           // Now create the new comment
           let comment = '## 🔒 DAST Security Scan Results\n\n';
           
-          if (scanSuccess) {
+          if (scanData.success) {
             comment += `### Summary\n`;
-            comment += `- 🔴 High Risk: ${highAlerts}\n`;
-            comment += `- 🟡 Medium Risk: ${mediumAlerts}\n`;
-            comment += `- 🔵 Low Risk: ${lowAlerts}\n`;
-            comment += `- 📊 Total Alerts: ${totalAlerts}\n\n`;
+            comment += `- 🔴 High Risk: ${scanData.highAlerts}\n`;
+            comment += `- 🟡 Medium Risk: ${scanData.mediumAlerts}\n`;
+            comment += `- 🔵 Low Risk: ${scanData.lowAlerts}\n`;
+            comment += `- 📊 Total Alerts: ${scanData.totalAlerts}\n\n`;
             
-            if (highAlerts > 0) {
-              comment += `⚠️ **Action Required**: ${highAlerts} high-risk security issue(s) found.\n\n`;
-            } else if (mediumAlerts > 0) {
-              comment += `⚡ **Attention**: ${mediumAlerts} medium-risk security issue(s) found.\n\n`;
-            } else if (totalAlerts > 0) {
-              comment += `✅ No critical security issues found, but ${totalAlerts} low-risk issue(s) detected.\n\n`;
+            if (scanData.highAlerts > 0) {
+              comment += `⚠️ **Action Required**: ${scanData.highAlerts} high-risk security issue(s) found.\n\n`;
+            } else if (scanData.mediumAlerts > 0) {
+              comment += `⚡ **Attention**: ${scanData.mediumAlerts} medium-risk security issue(s) found.\n\n`;
+            } else if (scanData.totalAlerts > 0) {
+              comment += `✅ No critical security issues found, but ${scanData.totalAlerts} low-risk issue(s) detected.\n\n`;
             } else {
               comment += `🎉 **Great news!** No security issues found in this scan.\n\n`;
             }
