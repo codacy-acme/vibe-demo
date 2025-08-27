@@ -21,7 +21,7 @@ jobs:
         echo "Testing app connectivity..."
         curl -f http://localhost:3008/ || echo "App not responding"
         echo "Running ZAP scan..."
-        docker run --rm -v $(pwd)/zap_output:/zap/wrk --add-host=host.docker.internal:host-gateway ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t http://host.docker.internal:3008 -J /zap/wrk/zap_report.json || echo "ZAP scan completed with warnings"
+        docker run --rm -v $(pwd)/zap_output:/zap/wrk --add-host=host.docker.internal:host-gateway ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t http://host.docker.internal:3008 -J zap_report.json || echo "ZAP scan completed with warnings"
         echo "Checking output files..."
         ls -la zap_output/ || echo "No zap_output directory"
         docker stop app
