@@ -22,7 +22,7 @@ jobs:
         curl -f http://localhost:3008/ || echo "App not responding"
         echo "Running ZAP scan..."
         chmod 777 zap_output
-        docker run --rm -v $(pwd)/zap_output:/zap/wrk --add-host=host.docker.internal:host-gateway --user $(id -u):$(id -g) ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t http://host.docker.internal:3008 -J zap_report.json || echo "ZAP scan completed with warnings"
+        docker run --rm -v $(pwd)/zap_output:/zap/wrk --add-host=host.docker.internal:host-gateway ghcr.io/zaproxy/zaproxy:stable zap-full-scan.py -t http://host.docker.internal:3008 -J /zap/wrk/zap_report.json || echo "ZAP scan completed with warnings"
         echo "Creating minimal JSON report if none exists..."
         if [ ! -f "zap_output/zap_report.json" ]; then
           echo '{"site":[{"@name":"http://host.docker.internal:3008","@host":"host.docker.internal","@port":"3008","@ssl":"false","alerts":[]}],"@version":"2.11.1","@generated":"'$(date -u +"%a, %d %b %Y %H:%M:%S")' GMT"}' > zap_output/zap_report.json
