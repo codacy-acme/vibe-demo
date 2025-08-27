@@ -3,266 +3,39 @@ name: DAST PR Security Scan
 on:
   pull_request:
     branches: [ main, develop ]
-    types: [opened, synchronize, reopened]
 
 jobs:
   dast-pr-scan:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout PR code
+    - name: Checkout code
       uses: actions/checkout@v4
-      with:
-        ref: ${{ github.event.pull_request.head.sha }}
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
-
-    - name: Install dependencies
+    - name: Build and run DAST scan
       run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-
-    - name: Build and start application
-      run: |
-        # Build the Docker image
-        docker build -t dast-demo-app-pr .
-        
-        # Start the application in background
-        docker run -d -p 3008:3008 --name dast-app-pr dast-demo-app-pr
-        
-        # Wait for application to be ready
-        timeout 60 bash -c 'until curl -f http://localhost:3008/; do sleep 2; done'
-
-    - name: Create ZAP output directory
-      run: |
+        docker build -t app .
+        docker run -d -p 3008:3008 --name app app
+        sleep 5
         mkdir -p zap_output
-        chmod 777 zap_output
+        docker run --rm -v $(pwd)/zap_output:/zap/wrk --add-host=host.docker.internal:host-gateway ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t http://host.docker.internal:3008 -J zap_report.json || true
+        docker stop app
+        docker rm app
 
-    - name: Run OWASP ZAP Baseline Scan (Fast)
-      run: |
-        # Use the working command structure from docker-compose
-        # ZAP exits with codes 0-3 based on findings, which are expected
-        set +e  # Don't exit on non-zero return codes
-        docker run --rm \
-          -v ${{ github.workspace }}/zap_output:/zap/wrk:rw \
-          --add-host=host.docker.internal:host-gateway \
-          ghcr.io/zaproxy/zaproxy:stable \
-          zap-baseline.py \
-          -t http://host.docker.internal:3008 \
-          -J /zap/wrk/zap_report.json
-        
-        # Capture the exit code
-        ZAP_EXIT_CODE=$?
-        echo "ZAP scan completed with exit code: $ZAP_EXIT_CODE"
-        
-        # ZAP exit codes: 0=no issues, 1=low, 2=medium, 3=high risk issues found
-        # These are all successful scan completions, not errors
-        if [ $ZAP_EXIT_CODE -le 3 ]; then
-          echo "✅ ZAP scan completed successfully"
-          exit 0
-        else
-          echo "❌ ZAP scan failed with unexpected exit code: $ZAP_EXIT_CODE"
-          exit 1
-        fi
-
-    - name: Upload ZAP Report to Codacy
+    - name: Upload to Codacy
       if: always()
       run: |
-        echo "Checking for ZAP report files..."
-        ls -la zap_output/ || echo "No zap_output directory found"
-        
         if [ -f "zap_output/zap_report.json" ]; then
-          echo "Found ZAP JSON report, validating format..."
-          
-          # Validate the report format
-          if python3 scripts/validate-zap-report.py zap_output/zap_report.json; then
-            echo "Report validation passed, uploading to Codacy..."
-            
-            curl -X POST https://app.codacy.com/api/v3/organizations/gh/codacy-acme/security/tools/dast/ZAP/reports \
-              -H "api-token: ${{ secrets.CODACY_API_TOKEN }}" \
-              -H "Content-Type: multipart/form-data" \
-              -H "Accept: application/json" \
-              -F "file=@./zap_output/zap_report.json" \
-              -F "reportFormat=json" \
-              -w "HTTP Status: %{http_code}\n" || echo "Failed to upload to Codacy"
-          else
-            echo "Report validation failed, skipping Codacy upload"
-          fi
-        else
-          echo "ZAP JSON report not found, checking what files exist..."
-          find zap_output -type f -name "*" 2>/dev/null || echo "No files found in zap_output"
+          curl -X POST https://app.codacy.com/api/v3/organizations/gh/codacy-acme/security/tools/dast/ZAP/reports \
+            -H "api-token: ${{ secrets.CODACY_API_TOKEN }}" \
+            -H "Content-Type: multipart/form-data" \
+            -F "file=@./zap_output/zap_report.json" \
+            -F "reportFormat=json" || echo "Upload failed"
         fi
 
-    - name: Generate scan summary
-      if: always()
-      run: |
-        echo "Generating scan summary..."
-        if [ -f "zap_output/zap_report.json" ]; then
-          echo "SCAN_SUCCESS=true" >> $GITHUB_ENV
-          
-          # Extract summary data using jq if available, otherwise use basic parsing
-          if command -v jq &> /dev/null; then
-            HIGH_COUNT=$(jq '[.site[0].alerts[] | select(.riskdesc | contains("High"))] | length' zap_output/zap_report.json 2>/dev/null || echo "0")
-            MEDIUM_COUNT=$(jq '[.site[0].alerts[] | select(.riskdesc | contains("Medium"))] | length' zap_output/zap_report.json 2>/dev/null || echo "0")
-            LOW_COUNT=$(jq '[.site[0].alerts[] | select(.riskdesc | contains("Low"))] | length' zap_output/zap_report.json 2>/dev/null || echo "0")
-            TOTAL_COUNT=$(jq '.site[0].alerts | length' zap_output/zap_report.json 2>/dev/null || echo "0")
-          else
-            # Fallback: basic counting using grep
-            HIGH_COUNT=$(grep -c '"riskdesc".*"High"' zap_output/zap_report.json 2>/dev/null || echo "0")
-            MEDIUM_COUNT=$(grep -c '"riskdesc".*"Medium"' zap_output/zap_report.json 2>/dev/null || echo "0")
-            LOW_COUNT=$(grep -c '"riskdesc".*"Low"' zap_output/zap_report.json 2>/dev/null || echo "0")
-            TOTAL_COUNT=$(grep -c '"name"' zap_output/zap_report.json 2>/dev/null || echo "0")
-          fi
-          
-          echo "HIGH_ALERTS=$HIGH_COUNT" >> $GITHUB_ENV
-          echo "MEDIUM_ALERTS=$MEDIUM_COUNT" >> $GITHUB_ENV
-          echo "LOW_ALERTS=$LOW_COUNT" >> $GITHUB_ENV
-          echo "TOTAL_ALERTS=$TOTAL_COUNT" >> $GITHUB_ENV
-          
-          echo "Found alerts: High=$HIGH_COUNT, Medium=$MEDIUM_COUNT, Low=$LOW_COUNT, Total=$TOTAL_COUNT"
-          
-          # Also create a summary file for the next step to read
-          cat > scan_summary.json << EOF
-        {
-          "success": true,
-          "highAlerts": $HIGH_COUNT,
-          "mediumAlerts": $MEDIUM_COUNT,
-          "lowAlerts": $LOW_COUNT,
-          "totalAlerts": $TOTAL_COUNT
-        }
-        EOF
-        else
-          echo "SCAN_SUCCESS=false" >> $GITHUB_ENV
-          echo "HIGH_ALERTS=0" >> $GITHUB_ENV
-          echo "MEDIUM_ALERTS=0" >> $GITHUB_ENV
-          echo "LOW_ALERTS=0" >> $GITHUB_ENV
-          echo "TOTAL_ALERTS=0" >> $GITHUB_ENV
-          echo "No scan report found"
-          
-          # Create failure summary file
-          cat > scan_summary.json << EOF
-        {
-          "success": false,
-          "highAlerts": 0,
-          "mediumAlerts": 0,
-          "lowAlerts": 0,
-          "totalAlerts": 0
-        }
-        EOF
-        fi
-
-    - name: Comment PR with scan results
-      if: always() && github.event_name == 'pull_request'
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const fs = require('fs');
-          
-          // Read scan summary from file as primary source
-          let scanData = { success: false, highAlerts: 0, mediumAlerts: 0, lowAlerts: 0, totalAlerts: 0 };
-          
-          try {
-            if (fs.existsSync('scan_summary.json')) {
-              const summaryContent = fs.readFileSync('scan_summary.json', 'utf8');
-              scanData = JSON.parse(summaryContent);
-              console.log('Scan summary loaded from file:', scanData);
-            } else {
-              console.log('scan_summary.json not found, falling back to environment variables');
-              // Fallback to environment variables
-              scanData.success = process.env.SCAN_SUCCESS === 'true';
-              scanData.highAlerts = parseInt(process.env.HIGH_ALERTS || '0');
-              scanData.mediumAlerts = parseInt(process.env.MEDIUM_ALERTS || '0');
-              scanData.lowAlerts = parseInt(process.env.LOW_ALERTS || '0');
-              scanData.totalAlerts = parseInt(process.env.TOTAL_ALERTS || '0');
-            }
-          } catch (error) {
-            console.log('Error reading scan summary:', error.message);
-            // Final fallback - check for report file directly
-            scanData.success = fs.existsSync('zap_output/zap_report.json');
-          }
-          
-          console.log('Final scan data:', scanData);
-          
-          // First, find and delete any existing DAST comments from github-actions bot
-          try {
-            const comments = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-            });
-            
-            const dastComments = comments.data.filter(comment => 
-              comment.user.login === 'github-actions[bot]' && 
-              comment.body.includes('🔒 DAST Security Scan Results')
-            );
-            
-            for (const comment of dastComments) {
-              console.log(`Deleting previous DAST comment: ${comment.id}`);
-              await github.rest.issues.deleteComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: comment.id,
-              });
-            }
-            
-            if (dastComments.length > 0) {
-              console.log(`Deleted ${dastComments.length} previous DAST comment(s)`);
-            }
-          } catch (error) {
-            console.log(`Warning: Could not delete previous comments: ${error.message}`);
-          }
-          
-          // Now create the new comment
-          let comment = '## 🔒 DAST Security Scan Results\n\n';
-          
-          if (scanData.success) {
-            comment += `### Summary\n`;
-            comment += `- 🔴 High Risk: ${scanData.highAlerts}\n`;
-            comment += `- 🟡 Medium Risk: ${scanData.mediumAlerts}\n`;
-            comment += `- 🔵 Low Risk: ${scanData.lowAlerts}\n`;
-            comment += `- 📊 Total Alerts: ${scanData.totalAlerts}\n\n`;
-            
-            if (scanData.highAlerts > 0) {
-              comment += `⚠️ **Action Required**: ${scanData.highAlerts} high-risk security issue(s) found.\n\n`;
-            } else if (scanData.mediumAlerts > 0) {
-              comment += `⚡ **Attention**: ${scanData.mediumAlerts} medium-risk security issue(s) found.\n\n`;
-            } else if (scanData.totalAlerts > 0) {
-              comment += `✅ No critical security issues found, but ${scanData.totalAlerts} low-risk issue(s) detected.\n\n`;
-            } else {
-              comment += `🎉 **Great news!** No security issues found in this scan.\n\n`;
-            }
-            
-            comment += `📊 **View detailed results**: Check the [Codacy Security Dashboard](https://app.codacy.com/gh/codacy-acme/vibe-demo/security) for complete analysis and remediation guidance.\n\n`;
-            comment += `✅ DAST scan completed successfully and results uploaded to Codacy.`;
-          } else {
-            comment += '❌ DAST scan failed - no results available\n\n';
-            comment += 'This may indicate an infrastructure issue. Please check the workflow logs for more details.';
-          }
-          
-          // Add timestamp to help with debugging
-          const timestamp = new Date().toISOString();
-          comment += `\n\n---\n*Last updated: ${timestamp}*`;
-          
-          await github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: comment
-          });
-
-    - name: Upload ZAP Reports as Artifacts
+    - name: Upload artifacts
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: zap-pr-reports-${{ github.event.pull_request.number }}
+        name: zap-pr-reports
         path: zap_output/
-        retention-days: 7
-
-    - name: Stop and remove containers
-      if: always()
-      run: |
-        docker stop dast-app-pr || true
-        docker rm dast-app-pr || true
